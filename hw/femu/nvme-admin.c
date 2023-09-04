@@ -40,6 +40,8 @@ static const uint32_t nvme_cse_acs[256] = {
     [NVME_ADM_CMD_SET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_GET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_ASYNC_EV_REQ]     = NVME_CMD_EFF_CSUPP,
+    [NVME_ADM_CMD_DIRECTIVE_SEND]   = NVME_CMD_EFF_CCC,
+    [NVME_ADM_CMD_DIRECTIVE_RECV]   = NVME_CMD_EFF_CCC,
 };
 
 //static const uint32_t nvme_cse_iocs_none[256];
@@ -1026,6 +1028,43 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
     return nvme_format_namespace(ns, lba_idx, meta_loc, pil, pi, sec_erase);
 }
 
+static uint16_t nvme_directive_recv(FemuCtrl *n, NvmeCmd *cmd)
+{
+    uint64_t prp1 = le64_to_cpu(cmd->dptr.prp1);
+    uint64_t prp2 = le64_to_cpu(cmd->dptr.prp2);
+    uint32_t numd  = le32_to_cpu(cmd->cdw10);
+    uint32_t dw11  = le32_to_cpu(cmd->cdw11);
+    uint8_t  dtype  = (dw11 >> 8) & 0xff;
+    uint8_t  doper  = dw11 & 0xFF;
+
+    switch (dtype) {
+    case NVME_DIRECTIVE_IDENTIFY:
+        return NVME_INVALID_FIELD | NVME_DNR;
+
+    case NVME_DIRECTIVE_STREAM:
+        switch (doper) {
+            case NVME_DIR_RCV_ID_OP_PARAM:
+                n->str_param->msl = 100;
+                n->str_param->nssa = 6;
+                n->str_param->nsa = 6;
+                if (((numd + 1) * 4) < sizeof(*(n->str_param))) {
+                    return dma_read_prp(n, (uint8_t *)n->str_param, (numd + 1) * 4, prp1, prp2);
+                }
+                else {
+                    return dma_read_prp(n, (uint8_t *)n->str_param,
+                                sizeof(*(n->str_param)), prp1, prp2);
+                }
+                return NVME_INVALID_FIELD | NVME_DNR;
+            default:
+                return NVME_INVALID_FIELD | NVME_DNR;
+        }
+    default:
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    return NVME_SUCCESS;
+}
+
 static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
 {
     switch (cmd->opcode) {
@@ -1082,6 +1121,16 @@ static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
     case NVME_ADM_CMD_SECURITY_SEND:
     case NVME_ADM_CMD_SECURITY_RECV:
         return NVME_INVALID_OPCODE | NVME_DNR;
+    case NVME_ADM_CMD_DIRECTIVE_SEND:                       //update~
+        if (NVME_OACS_DIRECTIVES & n->id_ctrl.oacs) {
+            return NVME_SUCCESS;
+        }
+        return NVME_INVALID_OPCODE | NVME_DNR;
+    case NVME_ADM_CMD_DIRECTIVE_RECV:
+        if (NVME_OACS_DIRECTIVES & n->id_ctrl.oacs) {
+            return nvme_directive_recv(n, cmd);
+        }
+        return NVME_INVALID_OPCODE | NVME_DNR;              //~update
     default:
         if (n->ext_ops.admin_cmd) {
             return n->ext_ops.admin_cmd(n, cmd);

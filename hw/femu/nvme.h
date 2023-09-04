@@ -322,6 +322,8 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_ASYNC_EV_REQ   = 0x0c,
     NVME_ADM_CMD_ACTIVATE_FW    = 0x10,
     NVME_ADM_CMD_DOWNLOAD_FW    = 0x11,
+    NVME_ADM_CMD_DIRECTIVE_SEND = 0X19, 
+    NVME_ADM_CMD_DIRECTIVE_RECV = 0X1a,
     NVME_ADM_CMD_FORMAT_NVM     = 0x80,
     NVME_ADM_CMD_SECURITY_SEND  = 0x81,
     NVME_ADM_CMD_SECURITY_RECV  = 0x82,
@@ -412,6 +414,23 @@ typedef struct NvmeIdentity {
     uint8_t     csi;
     uint32_t    rsvd12[4];
 } NvmeIdentify;
+
+enum {      
+    NVME_DIRECTIVE_IDENTIFY         = 0x0,
+    NVME_DIRECTIVE_STREAM           = 0x1,
+    NVME_DIR_RCV_ID_OP_PARAM        = 0x1,
+    NVME_DIRECTIVE_DATA_PLACEMENT   = 0x2,
+};         
+
+typedef struct NvmeDirectiveIdentify {  
+    uint8_t supported;
+    uint8_t unused1[31];
+    uint8_t enabled;
+    uint8_t unused33[31];
+    uint8_t persistent;
+    uint8_t unused65[31];
+    uint8_t rsvd64[4000];
+} NvmeDirectiveIdentify;                
 
 typedef struct NvmeRwCmd {
     uint8_t     opcode;
@@ -1195,6 +1214,18 @@ typedef struct FemuExtCtrlOps {
     uint16_t (*get_log)(struct FemuCtrl *, NvmeCmd *);
 } FemuExtCtrlOps;
 
+typedef struct NvmeDirStrParam {    
+    uint16_t     msl;
+    uint16_t     nssa;
+    uint16_t     nsso;
+    uint8_t      res10[10];
+    uint32_t     sws;
+    uint16_t     sgs;
+    uint16_t     nsa;
+    uint16_t     nso;
+    uint8_t      res6[6];
+} NvmeDirStrParam;                  
+
 typedef struct FemuCtrl {
     PCIDevice       parent_obj;
     MemoryRegion    iomem;
@@ -1301,6 +1332,8 @@ typedef struct FemuCtrl {
     NvmeCQueue      admin_cq;
     NvmeFeatureVal  features;
     NvmeIdCtrl      id_ctrl;
+
+    NvmeDirStrParam *str_param; 
 
     QSIMPLEQ_HEAD(aer_queue, NvmeAsyncEvent) aer_queue;
     QEMUTimer       *aer_timer;
