@@ -1121,7 +1121,7 @@ static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
     case NVME_ADM_CMD_SECURITY_SEND:
     case NVME_ADM_CMD_SECURITY_RECV:
         return NVME_INVALID_OPCODE | NVME_DNR;
-    case NVME_ADM_CMD_DIRECTIVE_SEND:                       //update~
+    case NVME_ADM_CMD_DIRECTIVE_SEND:                       
         if (NVME_OACS_DIRECTIVES & n->id_ctrl.oacs) {
             return NVME_SUCCESS;
         }
@@ -1130,7 +1130,7 @@ static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
         if (NVME_OACS_DIRECTIVES & n->id_ctrl.oacs) {
             return nvme_directive_recv(n, cmd);
         }
-        return NVME_INVALID_OPCODE | NVME_DNR;              //~update
+        return NVME_INVALID_OPCODE | NVME_DNR;             
     default:
         if (n->ext_ops.admin_cmd) {
             return n->ext_ops.admin_cmd(n, cmd);
