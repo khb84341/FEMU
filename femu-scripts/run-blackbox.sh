@@ -14,8 +14,8 @@ pgs_per_blk=256
 blks_per_pl=256 	
 pls_per_lun=1       # still not support multiplanes		
 luns_per_ch=8		
-nchs=8  			
-ssd_size=12288		# in MegaBytes
+nchs=4  			
+ssd_size=6144		# in MegaBytes
 
 # Latency in nanoseconds
 pg_rd_lat=40000
